@@ -19,7 +19,7 @@
 /* exported init */
 
 const Gettext = imports.gettext;
-const { GObject } = imports.gi;
+const { GObject, Gio, GLib } = imports.gi; 
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
@@ -28,50 +28,95 @@ const PopupMenu = imports.ui.popupMenu;
 const QuickSettings = imports.ui.quickSettings;
 const QuickSettingsMenu = imports.ui.main.panel.statusArea.quickSettings;
 
+const ByteArray = imports.byteArray; 
+const threshold_command = "pkexec tee /sys/class/power_supply/BAT0/charge_control_end_threshold" //new
+
 const Domain = Gettext.domain(Me.metadata.uuid);
 const _ = Domain.gettext;
 
 //const DisplayBackend = Me.imports.dbus;
 
-const LAST_SCALE_KEY = 'last-selected-display-scale';
+//const LAST_SCALE_KEY = 'last-selected-display-scale';
 
 // Round scale values to multiple of 25 % just like Gnome Settings
-function scaleToPercentage(scale) {
-    return Math.floor(scale * 4 + 0.5) * 25;
-}
+//function scaleToPercentage(scale) {
+//    return Math.floor(scale * 4 + 0.5) * 25;
+//}
 
-const DisplayScaleQuickMenuToggle = GObject.registerClass(
-    class DisplayScaleQuickMenuToggle extends QuickSettings.QuickMenuToggle {
+const BatteryThresholdQuickMenuToggle = GObject.registerClass(
+    class BatteryThresholdQuickMenuToggle extends QuickSettings.QuickMenuToggle {
 
         _init() {
             // Set QuickMenu name and icon
             super._init({
-                label: _('Battery threshold'),
+                label: _('Batt threshold'),
                 iconName: 'battery-level-100-discharged-symbolic',
                 toggleMode: true,
             });
+            
+
+            this.get_threshold(); 
+            let labelText = `Battery threshold: ${this.threshold}%`;
+
             // This function is unique to this class. It adds a nice header with an
             // icon, title and optional subtitle. It's recommended you do so for
             // consistency with other menus.
-            this.menu.setHeader('selection-mode-symbolic', 'Battery threshold',
-                'Preserve your battery');
+            this.menu.setHeader(`battery-level-${this.threshold}-discharged-symbolic`, 'Battery threshold',
+                labelText);
             
+    
             // You may also add sections of items to the menu
             this._itemsSection = new PopupMenu.PopupMenuSection();
-            this._itemsSection.addAction('100%', () => log('activated'));
-            this._itemsSection.addAction('80%', () => log('activated'));
-            this._itemsSection.addAction('60%', () => log('activated'));
+            this._itemsSection.addAction('100%', () => this.set_threshold("100"));
+            this._itemsSection.addAction('80%', () => {this.set_threshold("80"), this.checked = true}); //selected marked checked activate activated
+            this._itemsSection.addAction('60%', () => {this.set_threshold("60"), this.checked = true});
 
             this.menu.addMenuItem(this._itemsSection);
-    
-            // Add an entry-point for more settings
-            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            const settingsItem = this.menu.addAction('More Settings',
-                () => ExtensionUtils.openPrefs());
-                
-            // Ensure the settings are unavailable when the screen is locked
-            settingsItem.visible = Main.sessionMode.allowSettings;
-            this.menu._settingsActions[Extension.uuid] = settingsItem;
+
+            this.connect('clicked', () => this._toggle());
+        }
+        
+        _toggle() {
+            if (this.checked) {
+                this.set_threshold("80");
+            } else {
+                this.set_threshold("100");
+            }
+        }
+        
+        get_threshold() {
+            let [, out, ,] = GLib.spawn_command_line_sync("cat /sys/class/power_supply/BAT0/charge_control_end_threshold");
+            this.threshold = (ByteArray.toString(out)).trim();
+        }
+        
+        set_threshold(new_threshold) {
+            if (new_threshold !== this.threshold) {
+                try {
+                    let proc = Gio.Subprocess.new(
+                        ['/bin/bash', '-c', `echo ${new_threshold} | ${threshold_command}`],
+                        Gio.SubprocessFlags.STDERR_PIPE
+                    );
+                    proc.communicate_utf8_async(null, null, (proc, res) => {
+                        try {
+                            let [, , stderr] = proc.communicate_utf8_finish(res);
+                            if (!proc.get_successful())
+                                throw new Error(stderr);
+
+                            this.get_threshold()
+                            if (this.threshold == new_threshold) {
+                                Main.notify(_(`Battery threshold set to ${this.threshold}%`));
+                                this.menu.setHeader(`battery-level-${this.threshold}-discharged-symbolic`, 'Battery threshold', `Battery threshold: ${this.threshold}%`);
+                                //this.label = "txt"
+                                this.iconName = `battery-level-${this.threshold}-discharged-symbolic`
+                            }
+                        } catch (e) {
+                            logError(e);
+                        }
+                    });
+                } catch (e) {
+                    logError(e);
+                }
+            }
         }            
          
     });
@@ -86,7 +131,7 @@ class Extension {
 
     enable() {
         this._items = [];
-        this._items.push(new DisplayScaleQuickMenuToggle());
+        this._items.push(new BatteryThresholdQuickMenuToggle());
         QuickSettingsMenu._addItems(this._items);
     }
 
