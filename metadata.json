@@ -1,8 +1,11 @@
 {
-  "name": "test0",
-  "description": "test0 of my extention",
-  "uuid": "test0@henri.pihet.com",
+  "name": "Battery threshold GNOME 43",
+  "description": "A simple extension for gnome-shell that let easily set a threshold to limit battery charge level.",
+  "uuid": "batterythreshold@henri.pihet.com",
+  "url": "https://github.com/riri-314/gnome-shell43-extension-battery-threshold",
+  "original-author": " https://github.com/francku",
   "shell-version": [
     "43"
-  ]
+  ],
+  "version": 1
 }
