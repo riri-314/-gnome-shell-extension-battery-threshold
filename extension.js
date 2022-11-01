@@ -34,29 +34,27 @@ const threshold_command = "pkexec tee /sys/class/power_supply/BAT0/charge_contro
 const Domain = Gettext.domain(Me.metadata.uuid);
 const _ = Domain.gettext;
 
-//const DisplayBackend = Me.imports.dbus;
-
-//const LAST_SCALE_KEY = 'last-selected-display-scale';
-
-// Round scale values to multiple of 25 % just like Gnome Settings
-//function scaleToPercentage(scale) {
-//    return Math.floor(scale * 4 + 0.5) * 25;
-//}
-
 const BatteryThresholdQuickMenuToggle = GObject.registerClass(
     class BatteryThresholdQuickMenuToggle extends QuickSettings.QuickMenuToggle {
 
         _init() {
+            this.get_threshold(); 
             // Set QuickMenu name and icon
             super._init({
                 label: _('Batt threshold'),
-                iconName: 'battery-level-100-discharged-symbolic',
+                iconName: `battery-level-${this.threshold}-discharged-symbolic`,
                 toggleMode: true,
             });
             
 
-            this.get_threshold(); 
+            //this.get_threshold(); 
             let labelText = `Battery threshold: ${this.threshold}%`;
+
+            if (this.threshold !== "100") {
+                this.checked = true
+            } else {
+                this.checked = false
+            }
 
             // This function is unique to this class. It adds a nice header with an
             // icon, title and optional subtitle. It's recommended you do so for
@@ -68,8 +66,8 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
             // You may also add sections of items to the menu
             this._itemsSection = new PopupMenu.PopupMenuSection();
             this._itemsSection.addAction('100%', () => this.set_threshold("100"));
-            this._itemsSection.addAction('80%', () => {this.set_threshold("80"), this.checked = true}); //selected marked checked activate activated
-            this._itemsSection.addAction('60%', () => {this.set_threshold("60"), this.checked = true});
+            this._itemsSection.addAction('80%', () => {this.set_threshold("80")}); //selected marked checked activate activated
+            this._itemsSection.addAction('60%', () => {this.set_threshold("60")}); //, this.checked = true
 
             this.menu.addMenuItem(this._itemsSection);
 
@@ -77,12 +75,29 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
         }
         
         _toggle() {
-            if (this.checked) {
+            if (this.threshold == "100") {
                 this.set_threshold("80");
+                if (this.threshold == "80") {
+                     
+                } else {
+                    this.checked = false
+                }
             } else {
                 this.set_threshold("100");
+                if (this.threshold !== "100") {
+                    this.checked = true
+                }
             }
         }
+        _sync() {
+            if (this.threshold !== "100") {
+                this.checked = true
+            } else {
+                this.checked = false
+                //this.iconName = `battery-level-${this.threshold}-discharged-symbolic`
+            }
+        }
+    
         
         get_threshold() {
             let [, out, ,] = GLib.spawn_command_line_sync("cat /sys/class/power_supply/BAT0/charge_control_end_threshold");
@@ -103,11 +118,18 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
                                 throw new Error(stderr);
 
                             this.get_threshold()
-                            if (this.threshold == new_threshold) {
+                                this.checked = true
+                                if (this.threshold == new_threshold) {
                                 Main.notify(_(`Battery threshold set to ${this.threshold}%`));
                                 this.menu.setHeader(`battery-level-${this.threshold}-discharged-symbolic`, 'Battery threshold', `Battery threshold: ${this.threshold}%`);
                                 //this.label = "txt"
                                 this.iconName = `battery-level-${this.threshold}-discharged-symbolic`
+                                //this.set({checked})
+                                if (new_threshold == "100") {
+                                    this.checked = false
+                                } else {
+                                    this.checked = true
+                                }
                             }
                         } catch (e) {
                             logError(e);
