@@ -41,9 +41,10 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
             this.get_threshold(); 
             // Set QuickMenu name and icon
             super._init({
-                label: _('Batt threshold'),
+                title: _('Threshold'),
                 iconName: `battery-level-${this.threshold}-discharged-symbolic`,
                 toggleMode: true,
+                subtitle: this.threshold + "%",
             });
             
 
@@ -70,7 +71,7 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
             this._itemsSection.addAction('60%', () => {this.set_threshold("60")}); //, this.checked = true
 
             this.menu.addMenuItem(this._itemsSection);
-
+            
             this.connect('clicked', () => this._toggle());
         }
         
@@ -78,22 +79,23 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
             if (this.threshold == "100") {
                 this.set_threshold("80");
                 if (this.threshold == "80") {
-                     
                 } else {
                     this.checked = false
                 }
             } else {
                 this.set_threshold("100");
                 if (this.threshold !== "100") {
-                    this.checked = true
+                    this.checked = true;
                 }
             }
         }
         _sync() {
             if (this.threshold !== "100") {
                 this.checked = true
+                this.subtitle = this.threshold + "%";
             } else {
                 this.checked = false
+                this.subtitle = this.threshold + "%";
                 //this.iconName = `battery-level-${this.threshold}-discharged-symbolic`
             }
         }
@@ -122,6 +124,9 @@ const BatteryThresholdQuickMenuToggle = GObject.registerClass(
                                 if (this.threshold == new_threshold) {
                                 Main.notify(_(`Battery threshold set to ${this.threshold}%`));
                                 this.menu.setHeader(`battery-level-${this.threshold}-discharged-symbolic`, 'Battery threshold', `Battery threshold: ${this.threshold}%`);
+                                this.subtitle = this.threshold + "%";
+                                //change item section title here
+                                
                                 //this.label = "txt"
                                 this.iconName = `battery-level-${this.threshold}-discharged-symbolic`
                                 //this.set({checked})

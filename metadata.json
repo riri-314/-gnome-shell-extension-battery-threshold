@@ -5,7 +5,9 @@
   "url": "https://github.com/riri-314/gnome-shell43-extension-battery-threshold",
   "original-author": " https://github.com/francku",
   "shell-version": [
-    "43"
+    "43",
+    "44",
+    "45"
   ],
   "version": 1
 }
